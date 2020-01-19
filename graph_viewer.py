@@ -1,9 +1,10 @@
 #!/usr/bin/python
 #
 # graph_viewer generates a nicer view from the output of function_graph tracer.
-# I still haven't decided how it should go, though.
+# it generates an html page allowing convenient view of call graphs.
 
 import sys
+from io import StringIO
 
 
 def prepare_trace(tracefile):
@@ -55,15 +56,12 @@ def parse_trace(trace):
         return (FunctionCall(cur_name, parse_trace(rest[1:i])), ) + (more if more else ())
 
 
-def print_indented(s, indent):
-    print((' ' * indent) + s)
-
-
-def print_trace(parsed, indent=0):
+def print_trace(buf, parsed):
     assert type(parsed) is tuple
     for call in parsed:
-        print_indented(call.name, indent)
-        print_trace(call.calls, indent + 2)
+        buf.write('<li><a class="expand">' + call.name + " ({})".format(len(call.calls)) + "</a><ul>")
+        print_trace(buf, call.calls)
+        buf.write("</ul></li>")
 
 
 def main():
@@ -72,7 +70,18 @@ def main():
 
     trace = prepare_trace(sys.argv[1])
     parsed = parse_trace(trace)
-    print_trace(parsed)
+
+    buf = StringIO()
+    buf.write("<ul>")
+    print_trace(buf, parsed)
+    buf.write("</ul>")
+
+    with open("graph_template.html", "r") as f:
+        graph_template = f.read()
+
+    with open("output.html", "w") as f:
+        f.write(graph_template.replace("GRAPH_HTML", buf.getvalue()))
+
 
 if __name__ == "__main__":
     main()
